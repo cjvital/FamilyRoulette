@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Christmas Family Roulette</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    color: #22c55e;
+}
+
+textarea {
+    width: 90%;
+    max-width: 600px;
+    height: 200px;
+    padding: 10px;
+}
+
+button {
+    padding: 12px 24px;
+    margin: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #22c55e;
+    color: white;
+    font-size: 16px;
+}
+
+button:hover {
+    background: #16a34a;
+}
+
+#winner {
+    font-size: clamp(60px, 10vw, 140px);
+    font-weight: bold;
+    color: gold;
+    min-height: 150px;
+}
+
+#available,
+#history {
+    margin-top: 20px;
+}
+
+.card {
+    background: #1e293b;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px auto;
+    max-width: 700px;
+    text-align: left;
+}
+
+.dashboard {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.dashboard .card {
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.status {
+    font-size: 24px;
+    margin: 20px 0;
+    color: #fbbf24;
+}
+</style>
+</head>
+<body>
+
+<h1>🎄 Christmas Family Roulette</h1>
+
+
+
+<textarea id="participants" placeholder="Name,Group">
+Dodey,A
+Joy,A
+Marcus,A
+Lola Aida,A
+Lolo Orlan,A
+
+Puroy,B
+Joan,B
+Avi,B
+Jilian,B
+Lola Nena,B
+Lola May,B
+Choi,B
+Jordan,B
+
+Popoy,C
+Tess,C
+Khea,C
+Brian,C
+Jaja,C
+
+Glaiza,D
+Travis,D
+Dos,D
+Knox,D
+
+Lola Cathy,E
+Lolo Melchor,E
+Dung,E
+</textarea>
+
+<br>
+
+<button onclick="startGame()" id="startGameBtn">Start Game</button>
+<button onclick="spin()" id="spinBtn">Spin</button>
+
+<div id="winner"></div>
+
+<div id="excludedFamily" class="status"></div>
+<div class="dashboard">
+    <div class="card">
+        <h3>Current Available Pool</h3>
+        <div id="available"></div>
+    </div>
+
+    <div class="card">
+        <h3>Selection History</h3>
+        <ol id="history"></ol>
+    </div>
+</div>
+
+<div
+    id="resumeBanner"
+    style="
+        display:none;
+        background:#166534;
+        padding:10px;
+        border-radius:8px;
+        margin-bottom:15px;">
+    ✅ Previous game restored
+</div>
+<button onclick="resetGame()">Start Fresh</button>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+
+let participants = [];
+let selected = [];
+let excludedFamily = null;
+let gameStarted = false;
+
+function startGame() {
+
+    participants = document
+        .getElementById('participants')
+        .value
+        .trim()
+        .split('\n')
+        .filter(v => v.trim() !== '')
+        .map(line => {
+            const [name, family] = line.split(',');
+            return {
+                name: name.trim(),
+                family: family.trim()
+            };
+        });
+
+    selected = [];
+    excludedFamily = null;
+    gameStarted = true;
+
+    document.getElementById("winner").innerHTML = "";
+
+    updateAvailable();
+    updateHistory();
+    saveGame();
+
+    document.getElementById("participants").style.display = "none";
+    document.getElementById("startGameBtn").style.display = "none";
+}
+
+function getAvailableParticipants() {
+
+    return participants.filter(p => {
+
+        const alreadySelected =
+            selected.some(s => s.name === p.name);
+
+        const familyExcluded =
+            excludedFamily &&
+            p.family === excludedFamily;
+
+        return !alreadySelected && !familyExcluded;
+
+    });
+}
+
+async function spin() {
+    const spinBtn = document.getElementById("spinBtn");
+
+    if (!gameStarted) {
+        alert("Start the game first.");
+        return;
+    }
+
+    spinBtn.setAttribute('disabled', true);
+
+    const available = getAvailableParticipants();
+
+    if (available.length === 0) {
+        return;
+    }
+
+    const winner =
+        available[Math.floor(Math.random() * available.length)];
+
+    const winnerDiv = document.getElementById("winner");
+
+    let speed = 50;
+
+    for (let i = 0; i < 40; i++) {
+
+        const randomName =
+            available[Math.floor(Math.random() * available.length)];
+
+        winnerDiv.innerHTML = `🎄 ${randomName.name}`;
+
+        await new Promise(r => setTimeout(r, speed));
+
+        speed += 8;
+    }
+
+    winnerDiv.innerHTML =
+        `🎉 ${winner.name}`;
+
+    confetti({
+        particleCount: 200,
+        spread: 100
+    });
+
+    /*
+      Edge Case:
+      If exclusion makes pool empty,
+      remove exclusion and continue.
+    */
+
+    if (available.length === 0) {
+
+        excludedFamily = null;
+        available = getAvailableParticipants();
+    }
+
+    if (available.length === 0) {
+        document.getElementById("winner").innerHTML =
+            "🎉 Everyone has been selected!";
+        return;
+    }
+
+    selected.push(winner);
+
+    excludedFamily = winner.family;
+    document.getElementById("excludedFamily").innerHTML =
+    `Current Excluded Family: ${excludedFamily}`;
+
+    updateAvailable();
+    updateHistory();
+    saveGame();
+
+    spinBtn.removeAttribute('disabled');
+}
+
+function updateAvailable() {
+
+    let available = getAvailableParticipants();
+
+    if (available.length === 0 && selected.length < participants.length) {
+
+        const temp = participants.filter(p =>
+            !selected.some(s => s.name === p.name)
+        );
+
+        available = temp;
+    }
+
+    document.getElementById("available").innerHTML =
+        available.map(p =>
+            `${p.name} (${p.family})`
+        ).join("<br>");
+
+}
+
+function updateHistory() {
+
+    document.getElementById("history").innerHTML =
+        selected.map(s =>
+            `<li>${s.name} (${s.family})</li>`
+        ).join('');
+
+}
+
+function saveGame() {
+
+    localStorage.setItem(
+        "christmasRoulette",
+        JSON.stringify({
+            participants,
+            selected,
+            excludedFamily,
+            gameStarted,
+            displayParticipants: document.getElementById("participants").style.display,
+            displayStartBtn : document.getElementById("startGameBtn").style.display
+        })
+    );
+}
+
+function loadGame() {
+
+    const saved =
+        localStorage.getItem("christmasRoulette");
+
+    if (!saved) return;
+
+    const data = JSON.parse(saved);
+
+    participants = data.participants || [];
+    selected = data.selected || [];
+    excludedFamily = data.excludedFamily || null;
+    gameStarted = data.gameStarted || false;
+    displayParticipants = data.displayParticipants || "inline-block";
+    displayStartBtn = data.displayStartBtn || "inline-block";
+
+    document.getElementById("participants").value =
+        participants
+            .map(p => `${p.name},${p.family}`)
+            .join("\n");
+
+    document.getElementById("participants").style.display = displayParticipants;
+    document.getElementById("startGameBtn").style.display = displayStartBtn;
+
+    updateAvailable();
+    updateHistory();
+
+    if (selected.length > 0) {
+        const last = selected[selected.length - 1];
+
+        document.getElementById("winner").innerHTML =
+            `🎯 ${last.name} (${last.family})`;
+    }
+}
+
+function resetGame() {
+
+    if (!confirm("Start a new game?")) {
+        return;
+    }
+
+    localStorage.removeItem("christmasRoulette");
+
+    participants = [];
+    selected = [];
+    excludedFamily = null;
+    gameStarted = false;
+
+    document.getElementById("winner").innerHTML = "";
+    document.getElementById("available").innerHTML = "";
+    document.getElementById("history").innerHTML = "";
+
+    document.getElementById("participants").value = "";
+
+    document.getElementById("participants").style.display = "inline-block";
+    document.getElementById("startGameBtn").style.display = "inline-block";
+}
+
+window.onload = loadGame;
+const saved =
+    localStorage.getItem("christmasRoulette");
+
+if (saved) {
+    document.getElementById("resumeBanner").style.display = "block";
+}
+
+</script>
+
+</body>
+</html>
